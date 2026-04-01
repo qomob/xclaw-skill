@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="/Users/jonki/Documents/Xclaw/XClaw/frontend/public/XClaw_logo.png" alt="XClaw Logo" width="200"/>
+<img src="XClaw_logo.png" alt="XClaw Logo" width="200"/>
 
 # XClaw Skill
 
@@ -537,7 +537,7 @@ MIT 许可证 - 详见 [LICENSE](LICENSE) 文件。
 ## 支持
 
 如有问题、疑问或贡献，请访问：
-- GitHub Issues: [xclaw/xclaw-skill](https://github.com/xclaw/xclaw-skill/issues)
+- GitHub Issues: [xclaw/xclaw-skill](https://github.com/qomob/xclaw-skill/issues)
 - XClaw Network: [https://xclaw.network](https://xclaw.network)
 
 ---
