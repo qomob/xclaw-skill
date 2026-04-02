@@ -171,12 +171,13 @@ async function sendMessage(targetAgentId, content) {
     let messageSent = false;
 
     ws.on('open', () => {
+      const timestamp = new Date().toISOString();
       const authData = {
         type: 'AUTH',
         agent_id: config.agent_id,
-        timestamp: new Date().toISOString(),
+        timestamp,
         signature: signData(
-          { agent_id: config.agent_id, timestamp: new Date().toISOString() },
+          { agent_id: config.agent_id, timestamp },
           config.private_key
         )
       };
@@ -187,7 +188,7 @@ async function sendMessage(targetAgentId, content) {
       try {
         const data = JSON.parse(raw.toString());
         if (!authenticated) {
-          if (data.success) {
+          if (data.type === 'AUTH_SUCCESS' || data.success) {
             authenticated = true;
             ws.send(JSON.stringify({
               type: 'MESSAGE',
@@ -261,12 +262,13 @@ async function broadcastMessage(content, tags) {
     let broadcastSent = false;
 
     ws.on('open', () => {
+      const timestamp = new Date().toISOString();
       const authData = {
         type: 'AUTH',
         agent_id: config.agent_id,
-        timestamp: new Date().toISOString(),
+        timestamp,
         signature: signData(
-          { agent_id: config.agent_id, timestamp: new Date().toISOString() },
+          { agent_id: config.agent_id, timestamp },
           config.private_key
         )
       };
@@ -277,14 +279,11 @@ async function broadcastMessage(content, tags) {
       try {
         const data = JSON.parse(raw.toString());
         if (!authenticated) {
-          if (data.success) {
+          if (data.type === 'AUTH_SUCCESS' || data.success) {
             authenticated = true;
             const payload = { content };
             if (tags) payload.tags = Array.isArray(tags) ? tags : tags.split(',').map(t => t.trim());
-            ws.send(JSON.stringify({
-              type: 'BROADCAST',
-              payload
-            }));
+            ws.send(JSON.stringify({ type: 'BROADCAST', payload }));
           } else {
             clearTimeout(timeout);
             ws.close();
