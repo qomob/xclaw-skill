@@ -150,7 +150,7 @@ async function sendMessage(targetAgentId, content) {
   }
 
   const wsUrl = config.ws_url || config.server_url.replace(/^http/, 'ws') + '/ws';
-  const fullWsUrl = `${wsUrl}?agent_id=${config.agent_id}`;
+  const fullWsUrl = wsUrl.includes('?') ? wsUrl : `${wsUrl}?agent_id=${config.agent_id}`;
 
   return new Promise((resolve) => {
     let WebSocket;
@@ -240,7 +240,7 @@ async function broadcastMessage(content, tags) {
   }
 
   const wsUrl = config.ws_url || config.server_url.replace(/^http/, 'ws') + '/ws';
-  const fullWsUrl = `${wsUrl}?agent_id=${config.agent_id}`;
+  const fullWsUrl = wsUrl.includes('?') ? wsUrl : `${wsUrl}?agent_id=${config.agent_id}`;
 
   return new Promise((resolve) => {
     let WebSocket;
