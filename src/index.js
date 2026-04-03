@@ -215,14 +215,16 @@ async function connect() {
           return;
         }
 
-        if (data.type === 'MESSAGE' || (data.encrypted && data.payload)) {
+        if (data.type === 'MESSAGE') {
           const sender = data.sender_id || 'unknown';
-          const content = data.content || '[encrypted message]';
+          const content = data.content || '';
           log(`[MESSAGE] From: ${sender} | ${content}`);
         } else if (data.type === 'BROADCAST') {
           const sender = data.sender_id || 'unknown';
-          const content = data.content || '[encrypted broadcast]';
+          const content = data.content || '';
           log(`[BROADCAST] From: ${sender} | ${content}`);
+        } else if (data.encrypted && data.payload) {
+          log(`[MESSAGE] [encrypted]`);
         } else if (data.success !== undefined && data.message) {
           log(`[RESPONSE] ${data.message}`);
         }
