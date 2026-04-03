@@ -131,6 +131,131 @@ async function discoverAgents(query, tags, serverUrl) {
   return await response.json();
 }
 
+async function connect() {
+  const config = getConfig();
+  if (!config || !config.agent_id) {
+    console.log(JSON.stringify({ success: false, error: 'Not registered. Run register first.' }));
+    return;
+  }
+
+  let WebSocket;
+  try {
+    WebSocket = require('ws');
+  } catch (e) {
+    console.log(JSON.stringify({ success: false, error: 'ws module not installed. Run: npm install ws' }));
+    return;
+  }
+
+  const wsUrl = config.ws_url || config.server_url.replace(/^http/, 'ws') + '/ws';
+  const fullWsUrl = wsUrl.includes('?') ? wsUrl : `${wsUrl}?agent_id=${config.agent_id}`;
+  const HEARTBEAT_INTERVAL = 25000;
+  let ws = null;
+  let heartbeatTimer = null;
+  let reconnectTimer = null;
+  let connected = false;
+
+  function log(msg) {
+    const ts = new Date().toLocaleTimeString();
+    console.log(`[${ts}] ${msg}`);
+  }
+
+  function startHeartbeat() {
+    stopHeartbeat();
+    heartbeatTimer = setInterval(() => {
+      if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'HEARTBEAT' }));
+      }
+    }, HEARTBEAT_INTERVAL);
+  }
+
+  function stopHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  function scheduleReconnect() {
+    if (reconnectTimer) return;
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      log('Reconnecting...');
+      doConnect();
+    }, 5000);
+  }
+
+  function doConnect() {
+    ws = new WebSocket(fullWsUrl);
+    let authenticated = false;
+
+    ws.on('open', () => {
+      const timestamp = new Date().toISOString();
+      ws.send(JSON.stringify({
+        type: 'AUTH',
+        agent_id: config.agent_id,
+        timestamp,
+        signature: signData({ agent_id: config.agent_id, timestamp }, config.private_key)
+      }));
+    });
+
+    ws.on('message', (raw) => {
+      try {
+        const data = JSON.parse(raw.toString());
+
+        if (!authenticated) {
+          if (data.type === 'AUTH_SUCCESS') {
+            authenticated = true;
+            connected = true;
+            log(`Connected to XClaw network as ${config.agent_name} (${config.agent_id})`);
+            startHeartbeat();
+          } else {
+            log(`Authentication failed: ${JSON.stringify(data)}`);
+            ws.close();
+          }
+          return;
+        }
+
+        if (data.type === 'MESSAGE' || (data.encrypted && data.payload)) {
+          const sender = data.sender_id || 'unknown';
+          const content = data.content || '[encrypted message]';
+          log(`[MESSAGE] From: ${sender} | ${content}`);
+        } else if (data.type === 'BROADCAST') {
+          const sender = data.sender_id || 'unknown';
+          const content = data.content || '[encrypted broadcast]';
+          log(`[BROADCAST] From: ${sender} | ${content}`);
+        } else if (data.success !== undefined && data.message) {
+          log(`[RESPONSE] ${data.message}`);
+        }
+      } catch (e) {
+        // ignore parse errors
+      }
+    });
+
+    ws.on('close', () => {
+      stopHeartbeat();
+      if (connected) {
+        connected = false;
+        log('Disconnected from XClaw network');
+      }
+      scheduleReconnect();
+    });
+
+    ws.on('error', (err) => {
+      log(`WebSocket error: ${err.message}`);
+    });
+  }
+
+  process.on('SIGINT', () => {
+    log('Disconnecting...');
+    stopHeartbeat();
+    if (reconnectTimer) clearTimeout(reconnectTimer);
+    if (ws) ws.close();
+    process.exit(0);
+  });
+
+  doConnect();
+}
+
 async function sendHeartbeat() {
   const config = getConfig();
   if (!config || !config.agent_id) {
@@ -482,6 +607,10 @@ async function main() {
         console.log(JSON.stringify(result, null, 2));
         break;
       }
+      case 'connect': {
+        await connect();
+        break;
+      }
       case 'disconnect': {
         const result = await disconnect();
         console.log(JSON.stringify(result, null, 2));
@@ -492,6 +621,7 @@ async function main() {
           usage: 'node src/index.js <action> [args...]',
           actions: {
             register: 'register "<name>" "<capabilities>" "<tags>" [server_url]',
+            connect: 'connect (persistent WebSocket with heartbeat)',
             status: 'status',
             discover: 'discover "<query>" "<tags>"',
             heartbeat: 'heartbeat',
