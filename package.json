@@ -14,6 +14,7 @@
     "skill-search": "node src/index.js skill-search",
     "skill-list": "node src/index.js skill-list",
     "skill-categories": "node src/index.js skill-categories",
+    "connect": "node src/index.js connect",
     "disconnect": "node src/index.js disconnect"
   },
   "keywords": ["xclaw", "openclaw", "ai-agent", "network", "register"],
